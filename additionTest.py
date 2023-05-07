@@ -29,12 +29,12 @@ mp_pose = mp.solutions.pose
 
 cap = cv2.VideoCapture(0)
 cv2.namedWindow('Squat Form Analysis', cv2.WINDOW_NORMAL)
-cv2.resizeWindow('Squat Form Analysis', 1280, 920)
+cv2.resizeWindow('Squat Form Analysis', 1280, 720)
 
 # Delay for 10 seconds before starting
 for i in range(10, 0, -1):
-    ret, frame = cap.read()
 
+    ret, frame = cap.read()
     # Display countdown timer on screen
     font = cv2.FONT_HERSHEY_SIMPLEX
     cv2.putText(frame, str(i), (50, 50), font, 2, (0, 0, 255), 3, cv2.LINE_AA)
@@ -125,7 +125,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
 
             issues = []
             # Check all angles for proper form and store any issues in a dictionary
-            if depth_right_side > 190 or depth_left_side > 190:
+            if depth_right_side < 30 or depth_left_side < 30:
                 issues.append("good depth!")
                 depth_counter += 1
             if shoulder_angle > 190 or shoulder_angle < 170:
@@ -147,8 +147,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 issue = "no issues with your form"
 
             # ending pose
-            if ending_pose > 170:
-                ending_pose_frames += 1
+            #if 0 < ending_pose < 30:
+            #    ending_pose_frames += 1
 
         except:
             pass
@@ -158,6 +158,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
         cv2.rectangle(image, (0, 0), (225, 73), (245, 117, 16), -1)
 
         # Rep data
+        rounded1 = round(knees_over_toes_left_side, 2)
+        rounded2 = round(knees_over_toes_right_side, 2)
         cv2.putText(image, str(0),
                     (10, 60),
                     cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 2, cv2.LINE_AA)
@@ -177,30 +179,30 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
 
         cv2.imshow('Squat Form Analysis', image)
 
-        # if a detection is made in more than 30 frames, provide feedback for user to see afterwards
+        # if a detection is made in more than the specified frames, provide feedback for user to see afterwards
         # (multiple frames so that false positives are prevented)
         if depth_counter > 10 and not depth_message_printed:
             print("Your squat reached good depth!")
-            shoulders_message_printed = True
+            depth_message_printed = True
 
-        if flat_shoulders_issues > 30 and not shoulders_message_printed:
+        if flat_shoulders_issues > 60 and not shoulders_message_printed:
             print("focus on making sure your shoulders are flat")
             shoulders_message_printed = True
 
-        if foot_positioning_issues > 30 and not foot_message_printed:
+        if foot_positioning_issues > 60 and not foot_message_printed:
             print("focus on ensuring your feet are shoulder width apart")
             foot_message_printed = True
 
-        if knee_outward_issues > 30 and not knee_outward_message_printed:
+        if knee_outward_issues > 60 and not knee_outward_message_printed:
             print("focus on pushing your knees outwards to align them with your feet")
             knee_outward_message_printed = True
 
-        if knee_inward_issues > 30 and not knee_inward_message_printed:
+        if knee_inward_issues > 60 and not knee_inward_message_printed:
             print("focus on pulling your knees inwards to align them with your feet")
             knee_inward_message_printed = True
 
-        # if user holds ending pose for more than 50 frames end application
-        if ending_pose_frames > 50:
+        # if user holds ending pose for more than 60 frames end application
+        if ending_pose_frames > 60:
             break
 
         if cv2.waitKey(10) & 0xFF == ord('q'):
