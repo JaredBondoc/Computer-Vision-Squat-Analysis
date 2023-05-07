@@ -33,7 +33,6 @@ cv2.resizeWindow('Squat Form Analysis', 1280, 720)
 
 # Delay for 10 seconds before starting
 for i in range(10, 0, -1):
-
     ret, frame = cap.read()
     # Display countdown timer on screen
     font = cv2.FONT_HERSHEY_SIMPLEX
@@ -62,6 +61,11 @@ knee_inward_message_printed = False
 
 depth_counter = 0
 depth_message_printed = False
+
+left_balance_counter = 0
+left_message_printed = False
+right_balance_counter = 0
+right_message_printed = False
 
 # Setup mediapipe instance
 with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
@@ -105,21 +109,21 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                          landmarks[mp_pose.PoseLandmark.LEFT_HEEL.value].y]
             right_heel = [landmarks[mp_pose.PoseLandmark.RIGHT_HEEL.value].x,
                           landmarks[mp_pose.PoseLandmark.RIGHT_HEEL.value].y]
-            left_foot = [landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX.value].x,
-                         landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX.value].y]
-            right_foot = [landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value].x,
-                          landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value].y]
+
+            mid_shoulder = [(left_shoulder[0] + right_shoulder[0]) / 2,
+                            (left_shoulder[1] + right_shoulder[1]) / 2]
+            mid_heel = [(left_heel[0] + right_heel[0]) / 2,
+                        (left_heel[1] + right_heel[1]) / 2]
 
             # Calculate angles
             shoulder_angle = calculate_angle2(left_shoulder, right_shoulder)
             depth_left_side = calculate_angle2(left_knee, left_hip)
             depth_right_side = calculate_angle2(right_knee, right_hip)
             foot_positioning_left_side = calculate_angle2(left_ankle, left_shoulder)
-            foot_positioning_right_side = calculate_angle2(right_ankle, right_shoulder)
-            knees_over_toes_right_side = calculate_angle2(right_ankle, right_knee)
+            foot_positioning_right_side = calculate_angle2(right_shoulder, right_ankle)
             knees_over_toes_left_side = calculate_angle2(left_ankle, left_knee)
-            heels_left = calculate_angle2(left_foot, left_heel)
-            heels_right = calculate_angle2(right_foot, right_heel)
+            knees_over_toes_right_side = calculate_angle2(right_knee, right_ankle)
+            balance = calculate_angle2(mid_shoulder, mid_heel)
             # ending pose angle (left arm straight up in the air)
             ending_pose = calculate_angle2(left_shoulder, left_elbow)
 
@@ -131,7 +135,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             if shoulder_angle > 190 or shoulder_angle < 170:
                 issues.append("make sure your shoulders are flat")
                 flat_shoulders_issues += 1
-            if foot_positioning_left_side > 95.5 or foot_positioning_left_side < 85 or foot_positioning_right_side > 95.5 or foot_positioning_right_side < 85:
+            if foot_positioning_left_side > 99 or foot_positioning_left_side < 87 or foot_positioning_right_side > 99 or foot_positioning_right_side < 87:
                 issues.append("make sure your feet are shoulder width apart")
                 foot_positioning_issues += 1
             if knees_over_toes_right_side < 75 and knees_over_toes_left_side < 75:
@@ -140,6 +144,13 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             if knees_over_toes_right_side > 115 and knees_over_toes_left_side > 115:
                 issues.append("pull your knees inwards to align them with your feet")
                 knee_inward_issues += 1
+            if balance > 93:
+                issues.append("Your balance is shifted too far left")
+                left_balance_counter += 1
+            if balance < 87:
+                issues.append("Your balance is shifted too far right")
+                right_balance_counter += 1
+
             # If there are issues, return them. Otherwise, return a "correct form" message.
             if issues:
                 issue = " and ".join(issues)
@@ -147,7 +158,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 issue = "no issues with your form"
 
             # ending pose
-            #if 0 < ending_pose < 30:
+            # if 0 < ending_pose < 30:
             #    ending_pose_frames += 1
 
         except:
@@ -158,14 +169,14 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
         cv2.rectangle(image, (0, 0), (225, 73), (245, 117, 16), -1)
 
         # Rep data
-        rounded1 = round(knees_over_toes_left_side, 2)
-        rounded2 = round(knees_over_toes_right_side, 2)
-        cv2.putText(image, str(0),
+        rounded1 = round(balance, 2)
+        rounded2 = round(heels_left, 2)
+        cv2.putText(image, str(rounded2),
                     (10, 60),
                     cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 2, cv2.LINE_AA)
 
         # Issue data
-        cv2.putText(image, 'Issues', (65, 12),
+        cv2.putText(image, str(rounded1), (65, 12),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
         cv2.putText(image, issue,
                     (60, 60),
@@ -186,11 +197,13 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             depth_message_printed = True
 
         if flat_shoulders_issues > 60 and not shoulders_message_printed:
-            print("focus on making sure your shoulders are flat")
+            print('''focus on making sure your shoulders are flat as it helps maintain a neutral spine, prevent poor 
+            posture, and reduce the risk of back injury''')
             shoulders_message_printed = True
 
         if foot_positioning_issues > 60 and not foot_message_printed:
-            print("focus on ensuring your feet are shoulder width apart")
+            print('''focus on ensuring your feet are shoulder width apart as it allows for proper alignment of 
+            knees, hips, and ankles, reducing the risk of injury and ensuring effective muscle engagement''')
             foot_message_printed = True
 
         if knee_outward_issues > 60 and not knee_outward_message_printed:
@@ -200,6 +213,18 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
         if knee_inward_issues > 60 and not knee_inward_message_printed:
             print("focus on pulling your knees inwards to align them with your feet")
             knee_inward_message_printed = True
+
+        if left_balance_counter > 60 and not left_message_printed:
+            print('''During your squat it appears your weight balance is shifting too much towards your left side 
+            to prevent injury, it is important to distribute your weight equally between both feet. Focus on 
+            engaging your core and and pushing through your heels to maintain stability throughout the movement.''')
+            left_message_printed = True
+
+        if right_balance_counter > 60 and not right_message_printed:
+            print('''During your squat it appears your weight balance is shifting too much towards your right side 
+            to prevent injury, it is important to distribute your weight equally between both feet. Focus on 
+            engaging your core and and pushing through your heels to maintain stability throughout the movement.''')
+            right_message_printed = True
 
         # if user holds ending pose for more than 60 frames end application
         if ending_pose_frames > 60:
